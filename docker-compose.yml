@@ -1,0 +1,30 @@
+# revinfrastruct dev environment
+
+version: '2' # docker-compose format version
+services:
+
+  # We are including the sample site in our local repo here,
+  # but the idea is that every service pulls itself and its
+  # associated Dockerfile from its respective git repository
+  samplesite:
+    build: ./sample-site
+    command: /bin/bash -c "cd /usr/src/app && npm start"
+    tty: true
+   #build:
+   #  context: https://github.com/revinfrastruct/sandbox.git #  <-- like so
+
+  # The nginx container will act as a reverse proxy and should be the only service
+  # exposed to the outside (notice the `ports` property). The `links` property
+  # makes sure it can reference the other containers (by their hostnames).
+  nginx:
+    image: nginx
+    ports:
+      - "8080:80"
+    links:
+      - samplesite #This makes `samplesite` hostname reachable from this container
+    volumes:
+      - ./nginx:/etc/nginx/conf.d/docker
+    tty: true
+    # This command takes our supplied config and runs it through envsubst to replace
+    # all our environment variables, allowing us to use the variables in our conf template
+    command: /bin/bash -c "envsubst < /etc/nginx/conf.d/docker/default.conf > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
