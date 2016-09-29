@@ -1,5 +1,5 @@
 # revinfrastruct dev environment
-
+version: '2'
 services:
 
   # The nginx container will act as a reverse proxy and should be the only service
