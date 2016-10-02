@@ -1,0 +1,4 @@
+#!/bin/sh
+exec consul-template \
+-consul=10.0.2.15:8500 \
+-template “/etc/consul-template/nginx.conf:/etc/nginx/conf.d/app.conf”
