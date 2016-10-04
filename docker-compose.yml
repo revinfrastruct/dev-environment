@@ -1,30 +1,57 @@
 # revinfrastruct dev environment
 version: '2'
 services:
-  # The nginx container will act as a reverse proxy and should be the only
-  # service exposed to the outside (notice the `ports` property). The `links`
-  # property makes sure it can reference the other containers (by their
-  # hostnames).
-  nginx:
-    image: nginx
-    ports:
-      - "${PUBLIC_PORT}:80"
-    links:
-      # This makes `samplesite` hostname reachable from this container.
-      - samplesite
-    volumes:
-      - ./nginx:/etc/nginx/conf.d/docker
-    # This command takes our supplied config and runs it through envsubst to
-    # replace all our environment variables, allowing us to use the variables
-    # in our conf template. It also starts nginx in foreground mode.
-    command: /bin/bash -c "envsubst < /etc/nginx/conf.d/docker/default.conf > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
 
-  # We are including the sample site in our local repo here, but the idea is
-  # that every service pulls itself and its associated Dockerfile from its
-  # respective git repository
-  samplesite:
-    build: ./sample-site
-    command: /bin/bash -c "cd /usr/src/app && npm start"
-  #  build:
-  #    # Like so:
-  #    context: https://github.com/revinfrastruct/sandbox.git
+    # The nginx container will act as a reverse proxy and should be the only
+    # service exposed to the outside (notice the `ports` property). The `links`
+    # property makes sure it can reference the other containers (by their
+    # hostnames).
+    nginx:
+        image: nginx
+        links:
+            - wordpress
+        ports:
+            - "${PORT_MAIN}:80"
+            - "${PORT_ADMIN}:9876"
+        volumes:
+            - ./nginx:/etc/nginx/conf.d/docker
+        environment:
+            - "PORT_ADMIN=${PORT_ADMIN}"
+            - "SITE_NAME=${SITE_NAME}"
+        # This command takes our supplied config and runs it through envsubst to
+        # replace all our environment variables, allowing us to use the variables
+        # in our conf template. It also starts nginx in foreground mode.
+        command: /bin/bash -c "envsubst < /etc/nginx/conf.d/docker/default.conf > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
+
+    # NOTE: Vault starts in dev mode with all security measures turned off.
+    # This is purely for development and architecture demoing, DO NOT deploy
+    # anything vault-related in this state to production.
+    # vault:
+    #     build:
+    #         context: ./vault
+    #     links:
+    #         - nginx
+    #     ports:
+    #         - "8200:8200"
+    #     environment:
+    #         - "VAULT_ADDR=http://127.0.0.1:8200"
+    #     command: "vault server -dev"
+
+    mysql:
+        image: mysql:5.7
+        volumes:
+            - "./.data/db:/var/lib/mysql"
+        environment:
+            - "MYSQL_ROOT_PASSWORD=unsafe_dev_password"
+
+    wordpress:
+        depends_on:
+            - mysql
+        image: wordpress:latest
+        links:
+            - mysql
+        expose:
+            - "80"
+        environment:
+          - "WORDPRESS_DB_HOST=mysql:3306"
+          - "WORDPRESS_DB_PASSWORD=unsafe_dev_password"
